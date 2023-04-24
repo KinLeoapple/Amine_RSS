@@ -1,6 +1,5 @@
 # https://bangumi.moe/
-import time
-
+from aria2 import Aria2
 from rss import RSS, RssIntervalScheduler
 
 rss = RSS()
