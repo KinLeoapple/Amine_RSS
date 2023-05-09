@@ -1,13 +1,18 @@
+import asyncio
 import os
 import sqlite3
 import time
+from threading import Event, Thread
 
 from tabulate import tabulate
 import requests
+import nest_asyncio
 
 import aria2
 from methods import random_user_agent
 from web import spider
+
+nest_asyncio.apply()
 
 
 class RssDB:
@@ -96,23 +101,25 @@ class RSS:
         return data
 
     def update(self, name: str, update_dir: str):
+        aria2_client = aria2.Aria2()
         update_dir = update_dir.rstrip("/").rstrip("\\")
         data = self.rss_db.fetch_one(name)
         if data is not None:
             data = list(data)
             url = data[1]
-            self.__call_aria2(data, url, update_dir)
+            self.__call_aria2(aria2_client, data, url, update_dir)
 
     def update_all(self, update_dir: str):
+        aria2_client = aria2.Aria2()
         update_dir = update_dir.rstrip("/").rstrip("\\")
         data = self.rss_db.fetch_all()
         if len(data) > 0:
             for dt in data:
                 dt = list(dt)
                 url = dt[1]
-                self.__call_aria2(dt, url, update_dir)
+                self.__call_aria2(aria2_client, dt, url, update_dir)
 
-    def __call_aria2(self, data: list, url: str, update_dir: str):
+    def __call_aria2(self, aria2_client, data: list, url: str, update_dir: str):
         # find rss file
         r = requests.get(url, headers=random_user_agent())
         selector = spider.HtmlSelector(r.content.decode("utf-8"))
@@ -128,11 +135,6 @@ class RSS:
         if not os.path.exists(base_path):
             os.makedirs(base_path)
         # download with aria2
-        aria2.Aria2().get(torrents, base_path)
-        # clean torrent files
-        all_files = os.listdir(base_path)
-        filtered_files = [file for file in all_files if file.endswith(".torrent")]
-        for file in filtered_files:
-            os.remove(base_path + os.sep + file)
+        aria2_client.get(torrents, base_path)
 
 

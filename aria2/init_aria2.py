@@ -7,6 +7,7 @@ import shutil
 import zipfile
 from threading import Thread
 
+import aria2p
 import nest_asyncio
 import requests
 
@@ -16,12 +17,21 @@ nest_asyncio.apply()
 
 
 class InitAria2:
-    __slots__ = ("aria2_path", "base_path")
+    __slots__ = ("aria2_path", "base_path", "aria2", "port")
 
-    def __init__(self):
+    def __init__(self, port=6800):
+        self.port = port
         self.__check_aria2()
         thread = Thread(target=self.__run_aria2)
         thread.start()
+
+        self.aria2 = aria2p.API(
+            aria2p.Client(
+                host="http://localhost",
+                port=self.port,
+                secret=""
+            )
+        )
 
     def __check_aria2(self):
         dirname, filename = os.path.split(os.path.abspath(__file__))
@@ -43,6 +53,7 @@ class InitAria2:
                 "--seed-time=0",
                 "--enable-rpc",
                 "--rpc-listen-all",
+                f"--rpc-listen-port={self.port}",
                 "--lowest-speed-limit=0",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE)
@@ -57,6 +68,9 @@ class InitAria2:
 
     def get_aria2_path(self):
         return self.aria2_path
+
+    def get_aria2(self):
+        return self.aria2
 
     """
         for linux: https://github.com/aria2/aria2/releases/download/release-1.36.0/aria2-1.36.0-aarch64-linux-android-build1.zip
