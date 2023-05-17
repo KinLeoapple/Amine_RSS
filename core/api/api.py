@@ -23,19 +23,9 @@ class API:
     def start(self):
         self.app.run()
 
-    @staticmethod
-    @app.websocket("/downloads")
-    async def ws_downloads():
-        await websocket.send_json({"OK": "OK"})
-        while True:
-            try:
-                info = aria2.Aria2Methods().get_all_downloads()
-                if len(info) > 0:
-                    await websocket.send_json({"downloads": info})
-                await asyncio.sleep(1)
-            except Exception as err:
-                print(err)
-                await websocket.send_json({"err": "error"})
+    """
+    for files
+    """
 
     @staticmethod
     @app.websocket("/files")
@@ -58,3 +48,22 @@ class API:
         pil_img = methods.get_pil_cover(path)
         base64_img = methods.pil_base64(pil_img)
         return base64_img
+
+    """
+    for downloads
+    """
+
+    @staticmethod
+    @app.websocket("/downloads")
+    async def ws_downloads():
+        await websocket.send_json({"OK": "OK"})
+        while True:
+            try:
+                info = aria2.Aria2Methods().get_all_downloads()
+                if len(info) > 0:
+                    await websocket.send_json({"downloads": info})
+                await asyncio.sleep(1)
+            except Exception as err:
+                print(err)
+                await websocket.send_json({"err": "error"})
+                
