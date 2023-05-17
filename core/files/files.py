@@ -1,3 +1,8 @@
+"""
+For openCV-python please use
+"pip install opencv-python"
+"""
+
 import os.path
 
 
@@ -26,12 +31,14 @@ class Files:
             for filename in files:
                 if filename.lower().endswith(".torrent"):
                     os.remove(os.path.join(root, filename))
-    
+
     def __walk_dir(self):
         for root, dirs, files in os.walk(self.path):
             for filename in files:
-                self.__append_file(root, filename)
-        
+                if not filename.lower().endswith(".torrent") and \
+                        not filename.lower().endswith(".aria2"):
+                    self.__append_file(root, filename)
+
     def __append_file(self, root, file_name):
         self.file_list.append({"root": os.path.join(root, "").replace("\\\\", "/").replace("\\", "/"),
                                "name": file_name})

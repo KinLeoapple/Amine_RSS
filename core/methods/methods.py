@@ -1,6 +1,11 @@
+import base64
 import os
 import random
+from io import BytesIO
 
+from moviepy.video.io.VideoFileClip import VideoFileClip
+from PIL import Image
+import numpy as np
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows; U; Windows NT 5.2) Gecko/2008070208 Firefox/3.0.1"
@@ -39,3 +44,30 @@ def random_user_agent():
 
 def get_os():
     return os.name
+
+
+def get_port():
+    pscmd = "netstat -ntl |grep -v Active| grep -v Proto|awk '{print $4}'|awk -F: '{print $NF}'"
+    procs = os.popen(pscmd).read()
+    procarr = procs.split("\n")
+    t = random.randint(15000, 20000)
+    if t not in procarr:
+        return t
+    else:
+        return get_port()
+
+
+def get_pil_cover(video_path):
+    video = VideoFileClip(video_path)
+    clip_frame_time = video.duration / 3
+    img_array = video.make_frame(t=clip_frame_time)
+    return Image.fromarray(np.uint8(img_array))
+
+
+def pil_base64(image):
+    img_buffer = BytesIO()
+    image.save(img_buffer, format="JPEG")
+    byte_data = img_buffer.getvalue()
+    base64_str = base64.b64encode(byte_data)
+    return base64_str
+

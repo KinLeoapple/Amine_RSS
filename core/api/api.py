@@ -1,10 +1,10 @@
 import asyncio
 
 import nest_asyncio
-from quart import Quart, websocket
+from quart import Quart, websocket, request
 
-import aria2
-import files
+from core import files, aria2
+from core.methods import methods
 
 nest_asyncio.apply()
 
@@ -19,6 +19,9 @@ class API:
 
     def get_app(self):
         return self.app
+
+    def start(self):
+        self.app.run()
 
     @staticmethod
     @app.websocket("/downloads")
@@ -48,5 +51,10 @@ class API:
                 await websocket.send_json({"err": "error"})
 
     @staticmethod
-    @app.route("/file_cover", methods=["POST"])
+    @app.route("/file_cover/", methods=["POST"])
     async def file_cover():
+        data = await request.get_json()
+        path = data["path"]
+        pil_img = methods.get_pil_cover(path)
+        base64_img = methods.pil_base64(pil_img)
+        return base64_img

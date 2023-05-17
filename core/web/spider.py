@@ -6,7 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 # chrome
-from web.init_chrome import InitChrome
+from core.web.init_chrome import InitChrome
 
 
 class Condition:
@@ -75,8 +75,10 @@ class Spider:
     __slots__ = ("html", "driver")
 
     def __init__(self, url):
+        option = webdriver.ChromeOptions()
+        option.add_argument("headless")
         chrome_path = InitChrome().get_chrome_path()
-        self.driver = webdriver.Chrome(executable_path=repr(chrome_path))
+        self.driver = webdriver.Chrome(executable_path=repr(chrome_path), options=option)
         self.driver.get(url)
         self.html = None
 

@@ -7,17 +7,28 @@ from typing import Union
 
 import nest_asyncio
 
-from aria2 import aria2_client
+from core.aria2.init_aria2 import InitAria2
 
 nest_asyncio.apply()
 
 
+def init_client():
+    return InitAria2()
+
+
+aria2_client = init_client()
+
+
+def get_client():
+    return aria2_client.get_aria2()
+
+
 class Aria2Methods:
-    __slots__ = ("event", "client")
+    __slots__ = ("_event", "client")
 
     def __init__(self):
-        self.event = None
-        self.client = aria2_client.client
+        self._event = None
+        self.client = get_client().client
 
     def get_all_downloads(self):
         downloads = []
@@ -54,10 +65,10 @@ class Aria2Methods:
                 self.client.remove_download_result(download["gid"])
 
     def auto_clean_up(self):
-        self.event = Event()
+        self._event = Event()
 
         def run():
-            while not self.event.is_set():
+            while not self._event.is_set():
                 self.clean_up()
                 time.sleep(1)
 
@@ -65,9 +76,9 @@ class Aria2Methods:
         thread.start()
 
     def stop_auto_clean_up(self):
-        if self.event is not None:
-            self.event.set()
-            self.event = None
+        if self._event is not None:
+            self._event.set()
+            self._event = None
 
     def clean_up(self):
         downloads = self.get_all_downloads()
@@ -99,7 +110,7 @@ class Task:
             loop.run_until_complete(asyncio.gather(self.__task(urls)))
 
     async def __task(self, url):
-        download = aria2_client.client.add_uri([url], options={"dir": self.out_dir})
+        download = get_client().client.add_uri([url], options={"dir": self.out_dir})
         self.gids.append(download)
 
 

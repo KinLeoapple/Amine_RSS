@@ -3,6 +3,7 @@ aria2 version: 1.36.0
 """
 import asyncio
 import os.path
+import secrets
 import shutil
 import zipfile
 from threading import Thread
@@ -11,17 +12,18 @@ import aria2p
 import nest_asyncio
 import requests
 
-import methods
+from core import methods
 
 nest_asyncio.apply()
 
 
 class InitAria2:
-    __slots__ = ("aria2_path", "base_path", "aria2", "port")
+    __slots__ = ("aria2_path", "base_path", "session_path", "aria2", "port", "secret")
 
-    def __init__(self, port=6800):
-        self.port = port
+    def __init__(self):
+        self.secret = secrets.token_urlsafe()
         self.__check_aria2()
+        self.port = methods.get_port()
         thread = Thread(target=self.__run_aria2)
         thread.start()
 
@@ -29,13 +31,14 @@ class InitAria2:
             aria2p.Client(
                 host="http://localhost",
                 port=self.port,
-                secret=""
+                secret=self.secret
             )
         )
 
     def __check_aria2(self):
         dirname, filename = os.path.split(os.path.abspath(__file__))
         self.base_path = dirname + os.sep + "aria2" + os.sep
+        self.session_path = self.base_path + "aria2.session"
         current_os = methods.get_os()
         if current_os == "nt":
             self.aria2_path = self.base_path + "aria2c.exe"
@@ -54,10 +57,23 @@ class InitAria2:
                 "--enable-rpc",
                 "--rpc-listen-all",
                 f"--rpc-listen-port={self.port}",
+                f"--rpc-secret={self.secret}",
+                "--bt-require-crypto=true",
+                f"--input-file={self.session_path}",
+                f"--save-session={self.session_path}",
+                "--save-session-interval=60",
+                "--force-save=true",
+                "--continue=true",
                 "--lowest-speed-limit=0",
+                "--disable-ipv6=true",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE)
             await process.communicate()
+
+        if not os.path.exists(self.session_path):
+            f = open(self.session_path, mode="w")
+            f.write("")
+            f.close()
 
         try:
             loop = asyncio.get_event_loop()
@@ -96,8 +112,8 @@ class InitAria2:
         zip_aria2.close()
 
         extract_path = self.base_path + \
-                       url.split("https://github.com/aria2/aria2/releases/download/release-1.36.0/")[1].split(".zip")[
-                           0] + os.sep
+                       url.split("https://github.com/aria2/aria2/releases/download/release-1.36.0/")[1] \
+                           .split(".zip")[0] + os.sep
         dir_list = os.listdir(extract_path)
         for file in dir_list:
             shutil.move(extract_path + file, self.base_path + file)

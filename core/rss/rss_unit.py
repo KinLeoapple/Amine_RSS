@@ -1,16 +1,14 @@
-import asyncio
 import os
 import sqlite3
 import time
-from threading import Event, Thread
 
-from tabulate import tabulate
-import requests
 import nest_asyncio
+import requests
+from tabulate import tabulate
 
-import aria2
-from methods import random_user_agent
-from web import spider
+from core import aria2
+from core.methods import random_user_agent
+from core.web import spider
 
 nest_asyncio.apply()
 
@@ -26,7 +24,8 @@ class RssDB:
            (name TEXT,
             link TEXT,
             update_time NUMBER,
-            interval NUMBER);'''
+            interval NUMBER
+            pause BOOLEAN);'''
         self.cur.execute(sql_table)
 
     def insert_one(self, name: str, link: str, interval: int, force):
@@ -35,15 +34,15 @@ class RssDB:
             self.cur.execute(query, (link,))
             result = self.cur.fetchone()
             if result is None:
-                query = "INSERT INTO rss VALUES(?, ?, ?, ?)"
-                self.cur.execute(query, (name, link, 0, interval,))
+                query = "INSERT INTO rss VALUES(?, ?, ?, ?, ?)"
+                self.cur.execute(query, (name, link, 0, interval, False,))
                 self.conn.commit()
         else:
             query = "DELETE FROM rss WHERE link=?"
             self.cur.execute(query, (link,))
             self.conn.commit()
-            query = "INSERT INTO rss VALUES(?, ?, ?, ?)"
-            self.cur.execute(query, (name, link, 0, interval,))
+            query = "INSERT INTO rss VALUES(?, ?, ?, ?, ?)"
+            self.cur.execute(query, (name, link, 0, interval, False,))
             self.conn.commit()
 
     def remove_one(self, name: str):
@@ -54,6 +53,16 @@ class RssDB:
     def update_one(self, name: str, link: str, update_time: int, interval: int):
         query = "UPDATE rss SET name=?, link=?, update_time=?, interval=? WHERE name=?"
         self.cur.execute(query, (name, link, update_time, interval, name,))
+        self.conn.commit()
+
+    def set_pause(self, name: str):
+        query = "UPDATE rss SET pause=? WHERE name=?"
+        self.cur.execute(query, (True, name,))
+        self.conn.commit()
+
+    def set_resume(self, name: str):
+        query = "UPDATE rss SET pause=? WHERE name=?"
+        self.cur.execute(query, (False, name,))
         self.conn.commit()
 
     def fetch_one(self, name: str):
@@ -89,16 +98,37 @@ class RSS:
     def show(self, name: str):
         data = self.rss_db.fetch_one(name)
         if data is None:
-            data = ("None", "None", "None", "None",)
-        print(tabulate([map(lambda x: str(x), list(data))], headers=["Name", "Link", "Update Time", "Interval"]))
+            data = ("None", "None", "None", "None", "None",)
+        print(
+            tabulate([map(lambda x: str(x), list(data))], headers=["Name", "Link", "Update Time", "Interval", "Pause"]))
         return data
 
     def show_all(self):
         data = self.rss_db.fetch_all()
         if len(data) <= 0:
-            data.append(("None", "None", "None", "None",))
-        print(tabulate(map(lambda y: list(y), data), headers=["Name", "Link", "Update Time", "Interval"]))
+            data.append(("None", "None", "None", "None", "None",))
+        print(tabulate(map(lambda y: list(y), data), headers=["Name", "Link", "Update Time", "Interval", "Pause"]))
         return data
+
+    def pause_one(self, name: str):
+        self.rss_db.set_pause(name)
+
+    def pause_all(self):
+        data = self.rss_db.fetch_all()
+        if len(data) > 0:
+            for dt in data:
+                dt = list(dt)
+                self.pause_one(dt[0])
+
+    def resume_one(self, name: str):
+        self.rss_db.set_resume(name)
+
+    def resume_all(self):
+        data = self.rss_db.fetch_all()
+        if len(data) > 0:
+            for dt in data:
+                dt = list(dt)
+                self.resume_one(dt[0])
 
     def update(self, name: str, update_dir: str):
         aria2_client = aria2.Aria2()
@@ -124,9 +154,7 @@ class RSS:
         r = requests.get(url, headers=random_user_agent())
         selector = spider.HtmlSelector(r.content.decode("utf-8"))
         r.close()
-        # update database info
         torrents = []
-        self.rss_db.update_one(data[0], data[1], int(time.time()), data[3])
         # get torrent url
         for i in selector.select("enclosure"):
             torrent = i["url"].strip("'").strip("\"")
@@ -136,5 +164,5 @@ class RSS:
             os.makedirs(base_path)
         # download with aria2
         aria2_client.get(torrents, base_path)
-
-
+        # update database info
+        self.rss_db.update_one(data[0], data[1], int(time.time()), data[3])

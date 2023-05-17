@@ -3,7 +3,7 @@ import zipfile
 
 import requests
 
-import methods
+from core import methods
 
 
 class InitChrome:
