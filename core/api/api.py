@@ -5,10 +5,12 @@ from quart import Quart, websocket, request
 
 from core import files, aria2
 from core.methods import methods
+from core.rss import RSS
 
 nest_asyncio.apply()
 
 app = Quart(__name__)
+rss = RSS()
 
 
 class API:
@@ -66,4 +68,54 @@ class API:
             except Exception as err:
                 print(err)
                 await websocket.send_json({"err": "error"})
-                
+
+    """
+    for download rules
+    """
+
+    @staticmethod
+    @app.route("/get_rule/", methods=["POST"])
+    async def get_rule():
+        data = await request.get_json()
+        name = data["name"]
+        return rss.get(name)
+
+    @staticmethod
+    @app.route("/get_all_rules/", methods=["POST"])
+    async def get_all_rules():
+        return rss.get_all()
+
+    @staticmethod
+    @app.route("/set_rule/", methods=["POST"])
+    async def set_rule():
+        data = await request.get_json()
+        name = data["name"]
+        is_pause = data["is_pause"]
+        if int(is_pause) == 0:
+            rss.resume_one(name)
+            return True
+        elif int(is_pause) == 1:
+            rss.pause_one(name)
+            return True
+        else:
+            return False
+
+    @staticmethod
+    @app.route("/add_rule/", methods=["POST"])
+    async def add_rule():
+        data = await request.get_json()
+        name = data["name"]
+        url = data["url"]
+        interval = data["interval"]
+        is_force = data["is_force"]
+        rss.add(name, url, interval, is_force)
+        return True
+
+    @staticmethod
+    @app.route("/remove_rule/", methods=["POST"])
+    async def remove_rule():
+        data = await request.get_json()
+        name = data["name"]
+        rss.remove(name)
+        return True
+

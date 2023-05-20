@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import time
+import atexit
 
 import nest_asyncio
 import requests
@@ -86,6 +87,7 @@ class RSS:
     def __init__(self):
         self.rss_db = RssDB()
 
+    @atexit.register
     def close(self):
         self.rss_db.close()
 
@@ -95,20 +97,26 @@ class RSS:
     def remove(self, name: str):
         self.rss_db.remove_one(name)
 
-    def show(self, name: str):
+    def get(self, name: str):
         data = self.rss_db.fetch_one(name)
         if data is None:
             data = ("None", "None", "None", "None", "None",)
-        print(
-            tabulate([map(lambda x: str(x), list(data))], headers=["Name", "Link", "Update Time", "Interval", "Pause"]))
         return data
 
-    def show_all(self):
+    def get_all(self):
         data = self.rss_db.fetch_all()
         if len(data) <= 0:
             data.append(("None", "None", "None", "None", "None",))
-        print(tabulate(map(lambda y: list(y), data), headers=["Name", "Link", "Update Time", "Interval", "Pause"]))
         return data
+
+    def show(self, name: str):
+        data = self.get(name)
+        print(
+            tabulate([map(lambda x: str(x), list(data))], headers=["Name", "Link", "Update Time", "Interval", "Pause"]))
+
+    def show_all(self):
+        data = self.get_all()
+        print(tabulate(map(lambda y: list(y), data), headers=["Name", "Link", "Update Time", "Interval", "Pause"]))
 
     def pause_one(self, name: str):
         self.rss_db.set_pause(name)

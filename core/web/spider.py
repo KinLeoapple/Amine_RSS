@@ -1,3 +1,4 @@
+import atexit
 # bs4 import
 from bs4 import BeautifulSoup
 # selenium import
@@ -90,6 +91,7 @@ class Spider:
 
         self.html = self.driver.page_source
 
+    @atexit.register
     def close(self):
         if self.driver is not None:
             self.driver.close()
