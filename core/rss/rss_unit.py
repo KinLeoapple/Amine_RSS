@@ -18,33 +18,37 @@ class RssDB:
     __slots__ = ("conn", "cur")
 
     def __init__(self):
-        self.conn = sqlite3.connect("rss.db")
+        self.conn = sqlite3.connect("data.db")
         self.cur = self.conn.cursor()
 
         sql_table = '''CREATE TABLE IF NOT EXISTS rss
            (name TEXT,
             link TEXT,
             update_time NUMBER,
-            interval NUMBER
-            pause BOOLEAN);'''
+            interval NUMBER,
+            pause INT);'''
         self.cur.execute(sql_table)
 
     def insert_one(self, name: str, link: str, interval: int, force):
         if not force:
-            query = "SELECT * FROM rss WHERE link=?"
-            self.cur.execute(query, (link,))
+            query = "SELECT * FROM rss WHERE name=? and link=?"
+            self.cur.execute(query, (name, link,))
             result = self.cur.fetchone()
             if result is None:
                 query = "INSERT INTO rss VALUES(?, ?, ?, ?, ?)"
                 self.cur.execute(query, (name, link, 0, interval, False,))
                 self.conn.commit()
+                return True
+            else:
+                return False
         else:
-            query = "DELETE FROM rss WHERE link=?"
-            self.cur.execute(query, (link,))
+            query = "DELETE FROM rss WHERE name=? and link=?"
+            self.cur.execute(query, (name, link,))
             self.conn.commit()
             query = "INSERT INTO rss VALUES(?, ?, ?, ?, ?)"
             self.cur.execute(query, (name, link, 0, interval, False,))
             self.conn.commit()
+            return True
 
     def remove_one(self, name: str):
         query = "DELETE FROM rss WHERE name=?"
@@ -92,7 +96,7 @@ class RSS:
         self.rss_db.close()
 
     def add(self, name: str, link: str, interval: int, force=False):
-        self.rss_db.insert_one(name, link, interval, force)
+        return self.rss_db.insert_one(name, link, interval, force)
 
     def remove(self, name: str):
         self.rss_db.remove_one(name)

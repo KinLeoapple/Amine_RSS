@@ -9,6 +9,7 @@ import atexit
 import nest_asyncio
 
 from core.aria2.init_aria2 import InitAria2
+from core.files import VideoCover
 
 nest_asyncio.apply()
 
@@ -59,6 +60,7 @@ class Aria2Methods:
         # other types of files will directly remove from download results
         else:
             self.__remove_download_result(download)
+            VideoCover(path).get_base64_img()
 
     def __remove_download_result(self, download):
         # if download is completed

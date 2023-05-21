@@ -1,3 +1,3 @@
-from core.files.files import Files
+from core.files.files import Files, VideoCover
 
-__add__ = ["Files"]
+__add__ = ["Files", "VideoCover"]
