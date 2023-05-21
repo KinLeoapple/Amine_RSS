@@ -1,6 +1,7 @@
 import asyncio
 import time
 from threading import Thread, Event
+import atexit
 
 import nest_asyncio
 
@@ -41,5 +42,6 @@ class RssIntervalScheduler:
         await asyncio.sleep(offset)
         self.run_job(tuple(job), update_dir)
 
+    @atexit.register
     def shutdown(self):
         self._event.set()

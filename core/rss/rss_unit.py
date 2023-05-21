@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import time
+import atexit
 
 import nest_asyncio
 import requests
@@ -17,33 +18,37 @@ class RssDB:
     __slots__ = ("conn", "cur")
 
     def __init__(self):
-        self.conn = sqlite3.connect("rss.db")
+        self.conn = sqlite3.connect("data.db")
         self.cur = self.conn.cursor()
 
         sql_table = '''CREATE TABLE IF NOT EXISTS rss
            (name TEXT,
             link TEXT,
             update_time NUMBER,
-            interval NUMBER
-            pause BOOLEAN);'''
+            interval NUMBER,
+            pause INT);'''
         self.cur.execute(sql_table)
 
     def insert_one(self, name: str, link: str, interval: int, force):
         if not force:
-            query = "SELECT * FROM rss WHERE link=?"
-            self.cur.execute(query, (link,))
+            query = "SELECT * FROM rss WHERE name=? and link=?"
+            self.cur.execute(query, (name, link,))
             result = self.cur.fetchone()
             if result is None:
                 query = "INSERT INTO rss VALUES(?, ?, ?, ?, ?)"
                 self.cur.execute(query, (name, link, 0, interval, False,))
                 self.conn.commit()
+                return True
+            else:
+                return False
         else:
-            query = "DELETE FROM rss WHERE link=?"
-            self.cur.execute(query, (link,))
+            query = "DELETE FROM rss WHERE name=? and link=?"
+            self.cur.execute(query, (name, link,))
             self.conn.commit()
             query = "INSERT INTO rss VALUES(?, ?, ?, ?, ?)"
             self.cur.execute(query, (name, link, 0, interval, False,))
             self.conn.commit()
+            return True
 
     def remove_one(self, name: str):
         query = "DELETE FROM rss WHERE name=?"
@@ -86,29 +91,36 @@ class RSS:
     def __init__(self):
         self.rss_db = RssDB()
 
+    @atexit.register
     def close(self):
         self.rss_db.close()
 
     def add(self, name: str, link: str, interval: int, force=False):
-        self.rss_db.insert_one(name, link, interval, force)
+        return self.rss_db.insert_one(name, link, interval, force)
 
     def remove(self, name: str):
         self.rss_db.remove_one(name)
 
-    def show(self, name: str):
+    def get(self, name: str):
         data = self.rss_db.fetch_one(name)
         if data is None:
             data = ("None", "None", "None", "None", "None",)
-        print(
-            tabulate([map(lambda x: str(x), list(data))], headers=["Name", "Link", "Update Time", "Interval", "Pause"]))
         return data
 
-    def show_all(self):
+    def get_all(self):
         data = self.rss_db.fetch_all()
         if len(data) <= 0:
             data.append(("None", "None", "None", "None", "None",))
-        print(tabulate(map(lambda y: list(y), data), headers=["Name", "Link", "Update Time", "Interval", "Pause"]))
         return data
+
+    def show(self, name: str):
+        data = self.get(name)
+        print(
+            tabulate([map(lambda x: str(x), list(data))], headers=["Name", "Link", "Update Time", "Interval", "Pause"]))
+
+    def show_all(self):
+        data = self.get_all()
+        print(tabulate(map(lambda y: list(y), data), headers=["Name", "Link", "Update Time", "Interval", "Pause"]))
 
     def pause_one(self, name: str):
         self.rss_db.set_pause(name)

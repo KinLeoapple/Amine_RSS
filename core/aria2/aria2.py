@@ -4,10 +4,12 @@ import sys
 import time
 from threading import Event, Thread
 from typing import Union
+import atexit
 
 import nest_asyncio
 
 from core.aria2.init_aria2 import InitAria2
+from core.files import VideoCover
 
 nest_asyncio.apply()
 
@@ -21,6 +23,11 @@ aria2_client = init_client()
 
 def get_client():
     return aria2_client.get_aria2()
+
+
+@atexit.register
+def close():
+    get_client().client.shutdown()
 
 
 class Aria2Methods:
@@ -53,6 +60,7 @@ class Aria2Methods:
         # other types of files will directly remove from download results
         else:
             self.__remove_download_result(download)
+            VideoCover(path).get_base64_img()
 
     def __remove_download_result(self, download):
         # if download is completed
@@ -75,11 +83,13 @@ class Aria2Methods:
         thread = Thread(target=run)
         thread.start()
 
+    @atexit.register
     def stop_auto_clean_up(self):
         if self._event is not None:
             self._event.set()
             self._event = None
 
+    @atexit.register
     def clean_up(self):
         downloads = self.get_all_downloads()
         for download in downloads:
